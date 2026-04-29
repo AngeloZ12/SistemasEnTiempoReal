@@ -36,6 +36,18 @@ typedef struct{
 	uint16_t pin;
 	TickType_t delaytime;
 }TaskParams;
+
+typedef enum {
+    LED_OFF = 0,
+    LED_ON = 1
+} LedState_t;
+
+typedef struct{
+	GPIO_TypeDef* led_port;
+	uint16_t GPIOPIN;
+	LedState_t state;
+}LedsParams;
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -70,34 +82,35 @@ void TaskConsumidora(void * pvparameters);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 void TaskProductora(void *pvparameters){
-	uint16_t contador = 0;
-	uint16_t estado_anterior = 1;
+	static LedsParams led1 = {GPIOA , GPIO_PIN_5, LED_ON};
+	static LedsParams ledG  = {GPIOA , GPIO_PIN_8, LED_ON};
+    static LedsParams ledY = {GPIOA , GPIO_PIN_9, LED_ON};
+	static LedsParams ledR = {GPIOA , GPIO_PIN_10, LED_ON};
+    static LedsParams led1off = {GPIOA , GPIO_PIN_5, LED_OFF};
+   	static LedsParams ledGoff  = {GPIOA , GPIO_PIN_8, LED_OFF};
+   	static LedsParams ledYoff = {GPIOA , GPIO_PIN_9, LED_OFF};
+   	static LedsParams ledRoff = {GPIOA , GPIO_PIN_10, LED_OFF};
 
-	while(1){
-		if(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET){
-			if(estado_anterior == 1){
-				contador++;
-				xQueueSend(xQueueContador, &contador, 0);
-
-			}
-			estado_anterior = 0;
-		}
-		else{
-			estado_anterior = 1;
-		}
-		vTaskDelay(pdMS_TO_TICKS(50));
-	}
+    while(1){
+    	xQueueSend(xQueueContador, &led1, portMAX_DELAY);
+    	xQueueSend(xQueueContador, &ledG, portMAX_DELAY);
+    	xQueueSend(xQueueContador, &ledY, portMAX_DELAY);
+    	xQueueSend(xQueueContador, &ledR, portMAX_DELAY);
+    	xQueueSend(xQueueContador, &led1off, portMAX_DELAY);
+    	xQueueSend(xQueueContador, &ledGoff, portMAX_DELAY);
+	    xQueueSend(xQueueContador, &ledYoff, portMAX_DELAY);
+       	xQueueSend(xQueueContador, &ledRoff, portMAX_DELAY);
+    }
 }
 void TaskConsumidora(void * pvparameters){
-	uint16_t valor_Recibido;
+	LedsParams valor_Recibido;
 	while(1){
 		if(xQueueReceive(xQueueContador, &valor_Recibido, portMAX_DELAY) == pdPASS){
-			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, (valor_Recibido & 0x01));
-			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, (valor_Recibido & 0x02) >> 1);
-            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, (valor_Recibido & 0x04) >> 2);
-	        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, (valor_Recibido & 0x08) >> 3);
-
+			HAL_GPIO_WritePin(valor_Recibido.led_port, valor_Recibido.GPIOPIN, valor_Recibido.state);
+			vTaskDelay(pdMS_TO_TICKS(200));
 		}
+
+
 	}
 
 }
@@ -137,11 +150,11 @@ int main(void)
   MX_GPIO_Init();
   MX_ICACHE_Init();
   /* USER CODE BEGIN 2 */
-  xQueueContador = xQueueCreate(5, sizeof(uint16_t));
+  xQueueContador = xQueueCreate(1, sizeof(LedsParams));
 
   if(xQueueContador != NULL){
-	  xTaskCreate(TaskProductora, "Productor", 128, NULL, 2, NULL);
-	  xTaskCreate(TaskConsumidora, "Consumidor", 128, NULL, 1, NULL);
+	  xTaskCreate(TaskProductora, "Productor", 128, NULL, 1, NULL);
+	  xTaskCreate(TaskConsumidora, "Consumidor", 128, NULL, 2, NULL);
   }
   /* USER CODE END 2 */
 
