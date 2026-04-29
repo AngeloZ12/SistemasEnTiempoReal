@@ -1,0 +1,9 @@
+../Core/Src/main.c:71:6:appTask1	48	static
+../Core/Src/main.c:79:6:appTaskG	16	static
+../Core/Src/main.c:87:6:appTaskY	16	static
+../Core/Src/main.c:95:6:appTaskR	16	static
+../Core/Src/main.c:109:5:main	16	static
+../Core/Src/main.c:193:6:SystemClock_Config	120	static
+../Core/Src/main.c:244:6:MPU_Config	32	static
+../Core/Src/main.c:284:6:HAL_TIM_PeriodElapsedCallback	16	static
+../Core/Src/main.c:302:6:Error_Handler	4	static,ignoring_inline_asm
