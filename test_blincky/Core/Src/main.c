@@ -26,6 +26,7 @@
 /* USER CODE BEGIN Includes */
 #include "freeRTOS.h"
 #include "task.h"
+#include "queue.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -50,6 +51,7 @@ typedef struct{
 /* Private variables ---------------------------------------------------------*/
 
 COM_InitTypeDef BspCOMInit;
+QueueHandle_t xQueueContador;
 
 /* USER CODE BEGIN PV */
 
@@ -60,43 +62,42 @@ void SystemClock_Config(void);
 static void MPU_Config(void);
 void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
-void appTask1(void * pvparameters);
-void appTaskR(void * pvparameters);
-void appTaskY(void * pvparameters);
-void appTaskG(void * pvparameters);
+void TaskProductora(void * pvparameters);
+void TaskConsumidora(void * pvparameters);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void appTask1(void * pvparameters){
-	TaskParams *pxParams = (TaskParams*) pvparameters;
+void TaskProductora(void *pvparameters){
+	uint16_t contador = 0;
+	uint16_t estado_anterior = 1;
+
 	while(1){
-		HAL_GPIO_TogglePin(pxParams->port, pxParams->pin);
-		vTaskDelay(pdMS_TO_TICKS(pxParams->delaytime));
+		if(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET){
+			if(estado_anterior == 1){
+				contador++;
+				xQueueSend(xQueueContador, &contador, 0);
+
+			}
+			estado_anterior = 0;
+		}
+		else{
+			estado_anterior = 1;
+		}
+		vTaskDelay(pdMS_TO_TICKS(50));
 	}
-
 }
-void appTaskG(void * pvparameters){
-
+void TaskConsumidora(void * pvparameters){
+	uint16_t valor_Recibido;
 	while(1){
-		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_8);
-		vTaskDelay(pdMS_TO_TICKS(600));
-	}
+		if(xQueueReceive(xQueueContador, &valor_Recibido, portMAX_DELAY) == pdPASS){
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, (valor_Recibido & 0x01));
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, (valor_Recibido & 0x02) >> 1);
+            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, (valor_Recibido & 0x04) >> 2);
+	        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, (valor_Recibido & 0x08) >> 3);
 
-}
-void appTaskY(void * pvparameters){
-
-	while(1){
-		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_9);
-		vTaskDelay(pdMS_TO_TICKS(400));
-	}
-
-}
-void appTaskR(void * pvparameters){
-
-	while(1){
-		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_10);
-		vTaskDelay(pdMS_TO_TICKS(200));
+		}
 	}
 
 }
@@ -136,7 +137,12 @@ int main(void)
   MX_GPIO_Init();
   MX_ICACHE_Init();
   /* USER CODE BEGIN 2 */
+  xQueueContador = xQueueCreate(5, sizeof(uint16_t));
 
+  if(xQueueContador != NULL){
+	  xTaskCreate(TaskProductora, "Productor", 128, NULL, 2, NULL);
+	  xTaskCreate(TaskConsumidora, "Consumidor", 128, NULL, 1, NULL);
+  }
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -165,16 +171,8 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
- static TaskParams led1 = {GPIOA , GPIO_PIN_5, pdMS_TO_TICKS(800)};
- static TaskParams ledG  = {GPIOA , GPIO_PIN_8, pdMS_TO_TICKS(600)};
- static TaskParams ledR = {GPIOA , GPIO_PIN_10, pdMS_TO_TICKS(400)};
- static TaskParams ledY = {GPIOA , GPIO_PIN_9, pdMS_TO_TICKS(200)};
 
 
-  xTaskCreate(appTask1, "Task 1", 100, (void*)&led1, 1, NULL);
-  xTaskCreate(appTask1, "Task G", 100, (void*)&ledG, 1, NULL);
-  xTaskCreate(appTask1, "Task Y", 100, (void*)&ledR, 1, NULL);
-  xTaskCreate(appTask1, "Task R", 100, (void*)&ledY, 1, NULL);
   vTaskStartScheduler();
   while (1)
   {
